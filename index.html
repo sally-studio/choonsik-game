@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>춘식이 고구마 먹이기</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #2d1b00;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+
+  #game {
+    position: relative;
+    width: 400px;
+    height: 700px;
+    background: linear-gradient(180deg, #fff9f0 0%, #ffecd2 100%);
+    overflow: hidden;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+
+  #bgOverlay {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    transition: background 0.25s;
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 20px;
+  }
+
+  /* 상단 UI */
+  #topBar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 16px 20px 10px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  #scoreBox {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #feedCount {
+    background: rgba(255,255,255,0.9);
+    border-radius: 50px;
+    padding: 6px 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #6b3a00;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  #weightBox {
+    background: rgba(255,255,255,0.9);
+    border-radius: 50px;
+    padding: 6px 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  /* 체중 게이지 */
+  #weightBarWrap {
+    background: rgba(255,255,255,0.7);
+    border-radius: 10px;
+    height: 14px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  }
+  #weightBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #a8e063, #f9ca24, #f0932b, #eb4d4b);
+    border-radius: 10px;
+    transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  #weightLabel {
+    font-size: 11px;
+    color: #999;
+    text-align: right;
+    margin-top: 2px;
+    padding-right: 2px;
+  }
+
+  /* 춘식이 */
+  #choonsikWrap {
+    position: absolute;
+    top: 110px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    height: 340px;
+    z-index: 2;
+  }
+  #choonsikImg {
+    height: 320px;
+    width: auto;
+    max-width: 340px;
+    object-fit: contain;
+    transition: transform 0.15s;
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));
+  }
+  #choonsikImg.bounce {
+    animation: bounce 0.35s ease;
+  }
+  @keyframes bounce {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.08) translateY(-8px); }
+    60%  { transform: scale(0.96) translateY(2px); }
+    100% { transform: scale(1); }
+  }
+  #choonsikImg.angry {
+    animation: angryShake 0.5s ease;
+  }
+  @keyframes angryShake {
+    0%   { transform: translateX(0) rotate(0deg); }
+    15%  { transform: translateX(-10px) rotate(-4deg); }
+    30%  { transform: translateX(10px) rotate(4deg); }
+    45%  { transform: translateX(-8px) rotate(-3deg); }
+    60%  { transform: translateX(8px) rotate(3deg); }
+    75%  { transform: translateX(-4px) rotate(-1deg); }
+    100% { transform: translateX(0) rotate(0deg); }
+  }
+
+  /* 체중 증가 시 통통해지는 효과 */
+  #choonsikImg.fat {
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15)) saturate(1.1);
+  }
+
+  /* 말풍선 */
+  #speechBubble {
+    position: absolute;
+    top: 130px;
+    right: 30px;
+    background: white;
+    border-radius: 16px;
+    padding: 10px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+    z-index: 15;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 160px;
+    text-align: center;
+  }
+  #speechBubble::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 20px;
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid white;
+  }
+  #speechBubble.show {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* 고구마 버튼 */
+  #sweetPotatoWrap {
+    position: absolute;
+    bottom: 50px;
+    left: 0; right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    gap: 8px;
+  }
+  #sweetPotatoBtn {
+    font-size: 88px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
+    filter: drop-shadow(0 6px 16px rgba(0,0,0,0.2));
+    transform: scale(1);
+    transition: transform 0.08s;
+    -webkit-tap-highlight-color: transparent;
+    padding: 8px;
+  }
+  #sweetPotatoBtn:active { transform: scale(0.88); }
+  #sweetPotatoBtn.feed {
+    animation: feedPop 0.3s ease;
+  }
+  @keyframes feedPop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(0.75) translateY(10px); }
+    100% { transform: scale(1); }
+  }
+  #btnLabel {
+    font-size: 14px;
+    color: #999;
+    font-weight: bold;
+  }
+
+  /* +1 팝업 */
+  .popup {
+    position: absolute;
+    font-size: 24px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 20;
+    animation: floatUp 0.9s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translateY(0) scale(1.1); }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
+  }
+
+  /* 오버레이 */
+  #overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    color: white;
+  }
+  #overlay h1 { font-size: 28px; margin-bottom: 8px; line-height: 1.3; }
+  #overlay .desc { font-size: 14px; color: #ccc; line-height: 1.8; margin-bottom: 24px; }
+  #overlay .final { font-size: 58px; font-weight: bold; color: #ffd700; margin: 6px 0 2px; }
+  #overlay .finalLabel { font-size: 16px; color: #bbb; margin-bottom: 24px; }
+  .startBtn {
+    background: linear-gradient(135deg, #f9a825, #e65100);
+    border: none;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 14px 44px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(230,81,0,0.5);
+    font-family: inherit;
+    transition: transform 0.1s;
+  }
+  .startBtn:active { transform: scale(0.94); }
+
+  /* 과체중 경고 */
+  #overweightWarn {
+    position: absolute;
+    bottom: 175px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+    color: #eb4d4b;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #overweightWarn.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="bgOverlay"></div>
+
+  <div id="topBar">
+    <div id="scoreBox">
+      <div id="feedCount">🍠 0개 먹음</div>
+      <div id="weightBox">⚖️ 0 kg</div>
+    </div>
+    <div id="weightBarWrap">
+      <div id="weightBar"></div>
+    </div>
+    <div id="weightLabel">체중 한계: 5kg</div>
+  </div>
+
+  <div id="choonsikWrap">
+    <img id="choonsikImg" src="KakaoTalk_Photo_2026-05-27-17-52-57 001.png" alt="춘식이">
+  </div>
+
+  <div id="speechBubble">냠냠 😋</div>
+
+  <div id="overweightWarn">⚠️ 너무 많이 먹으면 안돼요!</div>
+
+  <div id="sweetPotatoWrap">
+    <button id="sweetPotatoBtn">🍠</button>
+    <div id="btnLabel">탭해서 먹이기</div>
+  </div>
+
+  <div id="overlay">
+    <div style="font-size:64px; margin-bottom:6px;">🍠</div>
+    <h1>춘식이<br>고구마 먹이기</h1>
+    <p class="desc">
+      춘식이 입이 벌려졌을 때<br>고구마를 먹여주세요!<br>
+      <span style="color:#f9ca24; font-weight:bold;">입 닫혔을 때 주면 화내요 😤</span><br>
+      <span style="color:#eb4d4b; font-weight:bold;">5kg 이상 찌면 게임 종료!</span>
+    </p>
+    <button class="startBtn" id="startBtn">게임 시작 🍠</button>
+  </div>
+</div>
+
+<script>
+// 이미지 경로
+const IMG_OPEN   = '1.png';  // 먹고 싶을 때
+const IMG_CLOSED = '4.png';  // 안 먹고 싶을 때
+const IMG_FULL   = '2.png';  // 충분히 먹어서 게임 종료
+const IMG_ANGRY  = '3.png';  // 먹기 싫은데 줘서 게임오버
+
+// 프리로드
+[IMG_OPEN, IMG_CLOSED, IMG_FULL, IMG_ANGRY].forEach(s => { const i = new Image(); i.src = s; });
+
+const choonsikImg    = document.getElementById('choonsikImg');
+const bgOverlay      = document.getElementById('bgOverlay');
+const feedCountEl    = document.getElementById('feedCount');
+const weightBoxEl    = document.getElementById('weightBox');
+const weightBarEl    = document.getElementById('weightBar');
+const speechBubble   = document.getElementById('speechBubble');
+const sweetPotatoBtn = document.getElementById('sweetPotatoBtn');
+const overlay        = document.getElementById('overlay');
+const overweightWarn = document.getElementById('overweightWarn');
+
+const MAX_WEIGHT = 5.0;   // kg
+const WEIGHT_PER_FEED = 0.15; // 한 개당 0.15kg
+const WARN_THRESHOLD = 0.75;  // 게이지 75%부터 경고
+
+let mouthOpen = false;
+let gameActive = false;
+let feedCount = 0;
+let weight = 0;
+let stateTimer = null;
+let bubbleTimer = null;
+let angryTimer = null;
+
+function startGame() {
+  feedCount = 0;
+  weight = 0;
+  mouthOpen = false;
+  gameActive = true;
+  overlay.style.display = 'none';
+  updateUI();
+  setMouthOpen();
+  scheduleNext();
+}
+
+function setMouthOpen() {
+  mouthOpen = true;
+  choonsikImg.src = IMG_OPEN;
+  bgOverlay.style.background = 'rgba(120,220,80,0.07)';
+  showBubble('냠냠 준비 중... 👀', '#4a9c2f');
+}
+
+function setMouthClosed() {
+  mouthOpen = false;
+  choonsikImg.src = IMG_CLOSED;
+  bgOverlay.style.background = 'transparent';
+  hideBubble();
+}
+
+function scheduleNext() {
+  if (!gameActive) return;
+  clearTimeout(stateTimer);
+
+  if (mouthOpen) {
+    // 입 열린 시간: 1.2s ~ 2.5s
+    const t = 1200 + Math.random() * 1300;
+    stateTimer = setTimeout(() => {
+      setMouthClosed();
+      scheduleNext();
+    }, t);
+  } else {
+    // 입 닫힌 시간: 0.8s ~ 2s
+    const t = 800 + Math.random() * 1200;
+    stateTimer = setTimeout(() => {
+      setMouthOpen();
+      scheduleNext();
+    }, t);
+  }
+}
+
+function showBubble(text, color = '#333') {
+  clearTimeout(bubbleTimer);
+  speechBubble.textContent = text;
+  speechBubble.style.color = color;
+  speechBubble.classList.add('show');
+  bubbleTimer = setTimeout(hideBubble, 1400);
+}
+
+function hideBubble() {
+  speechBubble.classList.remove('show');
+}
+
+function updateUI() {
+  feedCountEl.textContent = `🍠 ${feedCount}개 먹음`;
+  weightBoxEl.textContent = `⚖️ ${weight.toFixed(1)} kg`;
+  const pct = Math.min(100, (weight / MAX_WEIGHT) * 100);
+  weightBarEl.style.width = pct + '%';
+
+  if (pct >= WARN_THRESHOLD * 100) {
+    overweightWarn.classList.add('show');
+  } else {
+    overweightWarn.classList.remove('show');
+  }
+}
+
+function spawnPopup(text, color) {
+  const el = document.createElement('div');
+  el.className = 'popup';
+  el.textContent = text;
+  el.style.color = color;
+  el.style.left = (140 + Math.random() * 80) + 'px';
+  el.style.bottom = '170px';
+  document.getElementById('game').appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function feed() {
+  if (!gameActive) return;
+  clearTimeout(angryTimer);
+
+  if (mouthOpen) {
+    // 성공
+    feedCount++;
+    weight = Math.min(MAX_WEIGHT + 0.01, weight + WEIGHT_PER_FEED);
+    updateUI();
+
+    choonsikImg.classList.remove('bounce', 'angry');
+    void choonsikImg.offsetWidth;
+    choonsikImg.classList.add('bounce');
+
+    sweetPotatoBtn.classList.remove('feed');
+    void sweetPotatoBtn.offsetWidth;
+    sweetPotatoBtn.classList.add('feed');
+
+    // 체중에 따라 반응 다르게
+    if (weight >= MAX_WEIGHT) {
+      showBubble('으~억! 배불러 💥', '#eb4d4b');
+      setTimeout(() => triggerGameOver('fat'), 600);
+      return;
+    } else if (weight >= MAX_WEIGHT * 0.8) {
+      showBubble('배부른데...🥴', '#f0932b');
+    } else if (weight >= MAX_WEIGHT * 0.5) {
+      showBubble('맛있다~ 🤤', '#f9ca24');
+    } else {
+      const msgs = ['냠냠 😋', '맛있어! 🍠', '더 줘! 😆', '좋아좋아~'];
+      showBubble(msgs[Math.floor(Math.random() * msgs.length)], '#4a9c2f');
+    }
+
+    spawnPopup(`+${WEIGHT_PER_FEED.toFixed(2)}kg 🍠`, '#f0932b');
+
+  } else {
+    // 실패 - 즉시 게임오버
+    choonsikImg.src = IMG_ANGRY;
+    bgOverlay.style.background = 'rgba(255,50,50,0.2)';
+
+    choonsikImg.classList.remove('bounce', 'angry');
+    void choonsikImg.offsetWidth;
+    choonsikImg.classList.add('angry');
+
+    const angryMsgs = ['싫어!! 😤', '입 안 벌렸잖아!', '화났어!! 😡'];
+    showBubble(angryMsgs[Math.floor(Math.random() * angryMsgs.length)], '#eb4d4b');
+    spawnPopup('😤 화남!', '#eb4d4b');
+
+    clearTimeout(stateTimer);
+    setTimeout(() => triggerGameOver('angry'), 800);
+  }
+}
+
+function triggerGameOver(reason) {
+  gameActive = false;
+  clearTimeout(stateTimer);
+  clearTimeout(bubbleTimer);
+  choonsikImg.src = reason === 'fat' ? IMG_CLOSED : IMG_CLOSED;
+
+  setTimeout(() => {
+    const kg = weight.toFixed(1);
+    const isFat = reason === 'fat';
+    const emoji = isFat ? '😵' : '😤';
+    const title = isFat ? '과식해버렸다...' : '화내버렸다!!';
+    const desc = isFat
+      ? `춘식이가 너무 많이 먹었어요...<br>배가 너무 불러요 🤕`
+      : `입 닫혔을 때 줬잖아요!!<br>춘식이가 화났어요 😡`;
+    const imgSrc = isFat ? IMG_FULL : IMG_ANGRY;
+
+    overlay.innerHTML = `
+      <img src="${imgSrc}" style="height:160px; margin-bottom:6px; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.2))">
+      <h1>${emoji} ${title}</h1>
+      <p class="desc" style="margin-top:8px;">${desc}</p>
+      <div class="final">+${kg} kg</div>
+      <div class="finalLabel">고구마 ${feedCount}개 먹임 🍠</div>
+      <button class="startBtn" onclick="startGame()">다시 먹이기 🍠</button>
+    `;
+    overlay.style.display = 'flex';
+  }, 800);
+}
+
+sweetPotatoBtn.addEventListener('click', feed);
+sweetPotatoBtn.addEventListener('touchstart', e => {
+  e.preventDefault();
+  feed();
+}, { passive: false });
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
