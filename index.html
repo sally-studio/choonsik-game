@@ -629,7 +629,7 @@ function hideBubble() {
 
 function updateUI() {
   feedCountEl.textContent = `🍠 ${feedCount}개 먹음`;
-  weightBoxEl.textContent = `⚖️ ${totalGrams} g`;
+  weightBoxEl.textContent = `⚖️ ${totalGrams.toFixed(1)} g`;
   // 게이지: 30초에 이론상 최대치(입열림 비율 고려) 약 300g 기준
   const pct = Math.min(100, (totalGrams / 300) * 100);
   weightBarEl.style.width = pct + '%';
@@ -654,7 +654,7 @@ function feed() {
   if (mouthOpen) {
     // 성공
     feedCount++;
-    totalGrams += WEIGHT_PER_FEED;
+    totalGrams = Math.round(feedCount * WEIGHT_PER_FEED * 10) / 10;
     updateUI();
 
     choonsikImg.classList.remove('bounce', 'angry');
