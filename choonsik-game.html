@@ -299,8 +299,124 @@
     transition: opacity 0.3s;
   }
   #overweightWarn.show { opacity: 1; }
+  /* 결과 카드 페이지 */
+  #reportPage {
+    position: absolute;
+    inset: 0;
+    background: #f5f0eb;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    border-radius: 20px;
+  }
+  #reportPageInner {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 20px;
+  }
+  #reportBackBtn {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    font-size: 22px;
+    padding: 18px 20px 8px;
+    cursor: pointer;
+    color: #555;
+    font-family: inherit;
+  }
+
+  /* 캡처되는 카드 영역 */
+  #reportCard {
+    width: 340px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 0 0;
+  }
+  #rcTitle {
+    font-size: 20px;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 4px;
+  }
+  #rcNickname {
+    font-size: 28px;
+    font-weight: bold;
+    color: #1a6ef5;
+    margin-bottom: 16px;
+  }
+  #rcImg {
+    height: 180px;
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 20px;
+  }
+  #rcStats {
+    width: 100%;
+    border-top: 1px solid #eee;
+  }
+  .rc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid #eee;
+    font-size: 16px;
+    color: #222;
+  }
+  .rc-row span:last-child {
+    font-weight: bold;
+    color: #111;
+  }
+
+  /* 복사 버튼 */
+  #copyCardBtn {
+    margin-top: 20px;
+    background: #1a6ef5;
+    border: none;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+    padding: 14px 40px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(26,110,245,0.35);
+    font-family: inherit;
+    transition: transform 0.1s;
+  }
+  #copyCardBtn:active { transform: scale(0.95); }
+  #copyToast {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #1a6ef5;
+    font-weight: bold;
+    height: 20px;
+    transition: opacity 0.3s;
+    opacity: 0;
+  }
+  #reportRestartBtn {
+    margin-top: 10px;
+    background: none;
+    border: 2px solid #ddd;
+    color: #888;
+    font-size: 15px;
+    font-weight: bold;
+    padding: 10px 32px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-family: inherit;
+  }
 </style>
 </head>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <body>
 <div id="game">
   <div id="bgOverlay"></div>
@@ -330,6 +446,26 @@
     <div id="btnLabel">탭해서 먹이기</div>
   </div>
 
+  <!-- 결과 카드 페이지 -->
+  <div id="reportPage">
+    <div id="reportPageInner">
+      <button id="reportBackBtn" onclick="closeReport()">‹</button>
+      <div id="reportCard">
+        <div id="rcTitle">우리 춘식이는</div>
+        <div id="rcNickname">둥그러미</div>
+        <img id="rcImg" src="4.png" alt="춘식이">
+        <div id="rcStats">
+          <div class="rc-row"><span>오늘 먹은 고구마</span><span id="rcGrams">0g</span></div>
+          <div class="rc-row"><span>춘식이 몸무게</span><span id="rcWeight">0kg</span></div>
+          <div class="rc-row"><span>먹은 개수</span><span id="rcCount">0개</span></div>
+        </div>
+      </div>
+      <button id="copyCardBtn" onclick="copyCard()">이미지로 복사 📋</button>
+      <div id="copyToast">클립보드에 복사됐어요!</div>
+      <button id="reportRestartBtn" onclick="restartFromReport()">다시 먹이기 🍠</button>
+    </div>
+  </div>
+
   <div id="overlay">
     <div style="font-size:64px; margin-bottom:6px;">🍠</div>
     <h1>춘식이<br>고구마 먹이기</h1>
@@ -351,6 +487,19 @@ const IMG_ANGRY  = '3.png';  // 먹기 싫은데 줘서 게임오버
 
 // 프리로드
 [IMG_OPEN, IMG_CLOSED, IMG_FULL, IMG_ANGRY].forEach(s => { const i = new Image(); i.src = s; });
+
+// 먹은 g수에 따른 닉네임
+function getNickname(grams) {
+  if (grams >= 3.0) return '고구마 흡입기';
+  if (grams >= 2.0) return '춘식이 절친';
+  if (grams >= 1.2) return '배부른 춘식';
+  if (grams >= 0.6) return '둥그러미';
+  if (grams >= 0.2) return '조금 먹었지롱';
+  return '입맛 없는 춘식';
+}
+
+// 춘식이 총 누적 체중 (장난 수치, 세션마다 누적)
+let totalWeight = parseFloat(localStorage.getItem('choonsikWeight') || '32.4');
 
 const choonsikImg    = document.getElementById('choonsikImg');
 const bgOverlay      = document.getElementById('bgOverlay');
@@ -557,16 +706,76 @@ function triggerGameOver(reason) {
       imgSrc = IMG_ANGRY;
     }
 
+    // 누적 체중 업데이트
+    totalWeight = parseFloat((totalWeight + totalGrams / 1000).toFixed(1));
+    localStorage.setItem('choonsikWeight', totalWeight);
+
     overlay.innerHTML = `
       <img src="${imgSrc}" style="height:160px; margin-bottom:6px; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.2))">
       <h1>${emoji} ${title}</h1>
       <p class="desc" style="margin-top:8px;">${desc}</p>
-      <div class="final">${totalGrams} g</div>
+      <div class="final">${totalGrams.toFixed(1)} g</div>
       <div class="finalLabel">고구마 ${feedCount}개 먹임 🍠</div>
-      <button class="startBtn" onclick="startGame()">다시 먹이기 🍠</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <button class="startBtn" onclick="showReport()">결과 카드 보기 📊</button>
+        <button class="startBtn" style="background:linear-gradient(135deg,#888,#555);" onclick="startGame()">다시 먹이기 🍠</button>
+      </div>
     `;
     overlay.style.display = 'flex';
   }, delay);
+}
+
+function showReport() {
+  const nickname = getNickname(totalGrams);
+  document.getElementById('rcNickname').textContent = nickname;
+  document.getElementById('rcGrams').textContent = totalGrams.toFixed(1) + 'g';
+  document.getElementById('rcWeight').textContent = totalWeight.toFixed(1) + 'kg';
+  document.getElementById('rcCount').textContent = feedCount + '개';
+  document.getElementById('rcImg').src = IMG_FULL;
+  document.getElementById('copyToast').style.opacity = '0';
+  overlay.style.display = 'none';
+  const rp = document.getElementById('reportPage');
+  rp.style.display = 'flex';
+}
+
+function closeReport() {
+  document.getElementById('reportPage').style.display = 'none';
+  overlay.style.display = 'flex';
+}
+
+function restartFromReport() {
+  document.getElementById('reportPage').style.display = 'none';
+  startGame();
+}
+
+function copyCard() {
+  const card = document.getElementById('reportCard');
+  html2canvas(card, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      try {
+        const item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item]).then(() => {
+          const toast = document.getElementById('copyToast');
+          toast.style.opacity = '1';
+          setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+        }).catch(() => fallbackDownload(canvas));
+      } catch(e) {
+        fallbackDownload(canvas);
+      }
+    }, 'image/png');
+  });
+}
+
+function fallbackDownload(canvas) {
+  const a = document.createElement('a');
+  a.download = '춘식이결과.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+  const toast = document.getElementById('copyToast');
+  toast.textContent = '이미지 저장됐어요!';
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; toast.textContent = '클립보드에 복사됐어요!'; }, 2500);
 }
 
 sweetPotatoBtn.addEventListener('click', feed);
