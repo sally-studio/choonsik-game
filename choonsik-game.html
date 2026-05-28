@@ -341,6 +341,14 @@
     align-items: center;
     padding: 28px 0 0;
   }
+  #rcTop {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 4px;
+    background: white;
+  }
   #rcTitle {
     font-size: 20px;
     font-weight: bold;
@@ -451,16 +459,18 @@
     <div id="reportPageInner">
       <button id="reportBackBtn" onclick="closeReport()">‹</button>
       <div id="reportCard">
-        <div id="rcTitle">우리 춘식이는</div>
-        <div id="rcNickname">둥그러미</div>
-        <img id="rcImg" src="4.png" alt="춘식이">
+        <div id="rcTop">
+          <div id="rcTitle">우리 춘식이는</div>
+          <div id="rcNickname">둥그러미</div>
+          <img id="rcImg" src="4.png" alt="춘식이">
+        </div>
         <div id="rcStats">
           <div class="rc-row"><span>오늘 먹은 고구마</span><span id="rcGrams">0g</span></div>
           <div class="rc-row"><span>춘식이 몸무게</span><span id="rcWeight">0kg</span></div>
           <div class="rc-row"><span>먹은 개수</span><span id="rcCount">0개</span></div>
         </div>
       </div>
-      <button id="copyCardBtn" onclick="copyCard()">이미지로 복사 📋</button>
+      <button id="copyCardBtn" onclick="copyCard()">춘식이 자랑하기 🍠</button>
       <div id="copyToast">클립보드에 복사됐어요!</div>
       <button id="reportRestartBtn" onclick="restartFromReport()">다시 먹이기 🍠</button>
     </div>
@@ -499,7 +509,7 @@ function getNickname(grams) {
 }
 
 // 춘식이 총 누적 체중 (장난 수치, 세션마다 누적)
-let totalWeight = parseFloat(localStorage.getItem('choonsikWeight') || '32.4');
+let totalWeight = 0;
 
 const choonsikImg    = document.getElementById('choonsikImg');
 const bgOverlay      = document.getElementById('bgOverlay');
@@ -706,9 +716,8 @@ function triggerGameOver(reason) {
       imgSrc = IMG_ANGRY;
     }
 
-    // 누적 체중 업데이트
-    totalWeight = parseFloat((totalWeight + totalGrams / 1000).toFixed(1));
-    localStorage.setItem('choonsikWeight', totalWeight);
+    // 이번 게임 먹은 양을 몸무게로
+    totalWeight = parseFloat((totalGrams / 1000).toFixed(3));
 
     overlay.innerHTML = `
       <img src="${imgSrc}" style="height:160px; margin-bottom:6px; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.2))">
@@ -729,7 +738,7 @@ function showReport() {
   const nickname = getNickname(totalGrams);
   document.getElementById('rcNickname').textContent = nickname;
   document.getElementById('rcGrams').textContent = totalGrams.toFixed(1) + 'g';
-  document.getElementById('rcWeight').textContent = totalWeight.toFixed(1) + 'kg';
+  document.getElementById('rcWeight').textContent = totalGrams.toFixed(1) + 'g';
   document.getElementById('rcCount').textContent = feedCount + '개';
   document.getElementById('rcImg').src = IMG_FULL;
   document.getElementById('copyToast').style.opacity = '0';
@@ -749,7 +758,7 @@ function restartFromReport() {
 }
 
 function copyCard() {
-  const card = document.getElementById('reportCard');
+  const card = document.getElementById('rcTop');
   html2canvas(card, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
     canvas.toBlob(blob => {
       if (!blob) return;
