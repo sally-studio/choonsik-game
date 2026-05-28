@@ -754,8 +754,32 @@ function closeReport() {
 }
 
 function openKakaoSticker() {
-  // iOS / Android 딥링크 시도
-  window.location.href = 'kakaotalk://profile/edit/sticker';
+  const card = document.getElementById('rcTop');
+  html2canvas(card, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        window.location.href = 'kakaotalk://profile/edit/sticker';
+        return;
+      }
+      try {
+        const item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item]).then(() => {
+          const toast = document.getElementById('copyToast');
+          toast.textContent = '복사 완료! 카카오톡으로 이동해요 💛';
+          toast.style.opacity = '1';
+          setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.textContent = '클립보드에 복사됐어요!';
+            window.location.href = 'kakaotalk://profile/edit/sticker';
+          }, 800);
+        }).catch(() => {
+          window.location.href = 'kakaotalk://profile/edit/sticker';
+        });
+      } catch(e) {
+        window.location.href = 'kakaotalk://profile/edit/sticker';
+      }
+    }, 'image/png');
+  });
 }
 
 function restartFromReport() {
